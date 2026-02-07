@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Resume Analyzer - AI-Powered ATS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Smart Resume Analyzer</h1>
+            <p class="subtitle">AI-Powered Applicant Tracking System</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <form id="analyzeForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="resume">Upload Resume (PDF)</label>
+                        <input type="file" id="resume" name="resume" accept=".pdf" required>
+                        <small>Maximum file size: 16MB</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="job_description">Job Description</label>
+                        <textarea 
+                            id="job_description" 
+                            name="job_description" 
+                            rows="8" 
+                            placeholder="Paste the job description here..."
+                            required
+                        ></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="btn-text">Analyze Resume</span>
+                        <span class="btn-loader" style="display: none;">Processing...</span>
+                    </button>
+                </form>
+            </div>
+
+            <div id="results" class="results-section" style="display: none;">
+                <h2>Analysis Results</h2>
+                
+                <div class="match-score">
+                    <div class="score-circle">
+                        <span id="matchPercentage">0</span>%
+                    </div>
+                    <p class="score-label">Match Score</p>
+                </div>
+
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h3>✅ Matched Skills</h3>
+                        <div id="matchedSkills" class="skills-list"></div>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>⚠️ Missing Skills</h3>
+                        <div id="missingSkills" class="skills-list"></div>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>📄 Resume Skills</h3>
+                        <div id="resumeSkills" class="skills-list"></div>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>📋 Job Description Skills</h3>
+                        <div id="jdSkills" class="skills-list"></div>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-secondary" onclick="resetForm()">
+                    Analyze Another Resume
+                </button>
+            </div>
+
+            <div id="error" class="error-message" style="display: none;"></div>
+        </main>
+
+        <footer>
+            <p>Powered by Python, Flask, spaCy, and scikit-learn</p>
+        </footer>
+    </div>
+
+    <script>
+        const form = document.getElementById('analyzeForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnLoader = submitBtn.querySelector('.btn-loader');
+        const resultsSection = document.getElementById('results');
+        const errorDiv = document.getElementById('error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Reset UI
+            resultsSection.style.display = 'none';
+            errorDiv.style.display = 'none';
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'inline';
+            
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.results);
+                } else {
+                    showError(data.error || 'An error occurred');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoader.style.display = 'none';
+            }
+        });
+
+        function displayResults(results) {
+            // Update match percentage
+            const matchPercentage = results.match_percentage || 0;
+            document.getElementById('matchPercentage').textContent = matchPercentage.toFixed(1);
+            
+            // Update score circle color based on percentage
+            const scoreCircle = document.querySelector('.score-circle');
+            if (matchPercentage >= 70) {
+                scoreCircle.className = 'score-circle high';
+            } else if (matchPercentage >= 50) {
+                scoreCircle.className = 'score-circle medium';
+            } else {
+                scoreCircle.className = 'score-circle low';
+            }
+            
+            // Display skills
+            displaySkills('matchedSkills', results.matched_skills || []);
+            displaySkills('missingSkills', results.missing_skills || []);
+            displaySkills('resumeSkills', results.resume_skills || []);
+            displaySkills('jdSkills', results.jd_skills || []);
+            
+            // Show results section
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function displaySkills(elementId, skills) {
+            const element = document.getElementById(elementId);
+            if (skills.length === 0) {
+                element.innerHTML = '<p class="no-skills">No skills found</p>';
+            } else {
+                element.innerHTML = skills.map(skill => 
+                    `<span class="skill-tag">${skill}</span>`
+                ).join('');
+            }
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function resetForm() {
+            form.reset();
+            resultsSection.style.display = 'none';
+            errorDiv.style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
+
